@@ -30,77 +30,93 @@
         h1 {
             font-size: 1.5rem;
             letter-spacing: 2px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             color: #ffffff;
             text-align: center;
+            font-weight: 800;
         }
 
         .container {
             width: 100%;
-            max-width: 450px;
+            max-width: 480px;
             display: flex;
             flex-direction: column;
-            min-height: 85vh;
         }
 
         .log-list {
             list-style: none;
             width: 100%;
-            flex-grow: 1;
         }
 
         .log-item {
-            background: #1e1e1e;
-            padding: 12px 16px;
-            margin-bottom: 8px;
-            border-radius: 8px;
+            background: #1a1a1a;
+            padding: 14px 18px;
+            margin-bottom: 10px;
+            border-radius: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 0.95rem;
-            border-left: 4px solid #4CAF50;
+            font-size: 1rem;
+            border-left: 5px solid #4CAF50;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+
+        .log-item.critical {
+            border-left-color: #ff4d4d;
         }
 
         .log-date {
-            color: #b0b0b0;
+            color: #aaaaaa;
+            font-weight: 500;
+            width: 30%;
+            text-align: left;
         }
 
         .log-time {
-            font-weight: bold;
+            font-weight: 700;
             color: #ffffff;
+            width: 40%;
+            text-align: center;
+            letter-spacing: 0.5px;
         }
 
         .log-battery {
             display: flex;
             align-items: center;
+            justify-content: flex-end;
+            width: 25%;
         }
 
         .footer-section {
-            margin-top: 20px;
+            margin-top: 30px;
             width: 100%;
+            padding-bottom: 20px;
         }
 
         .action-btn {
             background: #2a1a1a;
             color: #ff6b6b;
             border: none;
-            padding: 14px 15px;
-            border-radius: 8px;
-            font-size: 0.9rem;
+            padding: 16px 20px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 700;
             cursor: pointer;
             width: 100%;
-            transition: background 0.2s;
+            transition: all 0.2s ease;
             text-align: center;
         }
 
         .action-btn:active {
             background: #3a2222;
+            transform: scale(0.98);
         }
 
         .loading {
             text-align: center;
             color: #777;
-            margin-top: 20px;
+            margin-top: 40px;
+            font-size: 1.1rem;
         }
     </style>
 </head>
@@ -127,36 +143,39 @@
 
         // Funktion som skapar batteri-ikon baserat på spänning (3.0V - 4.2V)
         function getBatteryIcon(voltage) {
-            if (voltage === undefined || voltage === null) return '';
+            if (voltage === undefined || voltage === null) {
+                 return createSvgShell("#777", ""); // Grå ikon om ingen data
+            }
 
             // Begränsa mellan 3.0 och 4.2
             let v = Math.max(3.0, Math.min(4.2, voltage));
             
-            // Dela in i 5 nivåer (varje steg är 0.24V)
-            let level = Math.ceil((v - 3.0) / 0.24);
-            if (level < 1) level = 1;
-            if (level > 5) level = 5;
+            // Dela in i nivåer 0-5
+            // 4.2V = nivå 5, 3.0V = nivå 0 (tom, röd)
+            let level = Math.max(0, Math.floor((v - 3.0) / 0.24));
 
-            // Färgkoder matchande bildens nivåer
-            const colors = {
-                1: "#ff4d4d", // Röd (<= 3.2V)
-                2: "#ff9800", // Orange
-                3: "#ffeb3b", // Gul
-                4: "#8bc34a", // Ljusgrön
-                5: "#4CAF50"  // Mörkgrön
-            };
+            // Färgkoder
+            let color = "#4CAF50"; // Grön
+            if (v <= 3.5) color = "#ff9800"; // Orange
+            if (v <= 3.2) color = "#ff4d4d"; // Röd (kritisk)
 
-            const color = colors[level];
-
-            // Bygg de 5 staplarna underifrån och upp
+            // Bygg de 5 staplarna UNDERIFRÅN och upp
             let barsHtml = '';
+            // Staplarna är 2px höga med 1px mellanrum. Totalt utrymme: 5 staplar * 3px = 15px.
+            // Botten på staplarna börjar vid y=18.
             for (let i = 1; i <= 5; i++) {
-                let y = 18 - (i * 3);
+                let yPos = 18 - (i * 3);
+                // Fyll stapeln om dess index (1-5) är mindre än eller lika med nivån
                 let fill = i <= level ? color : 'transparent';
-                barsHtml += `<rect x="3" y="${y}" width="10" height="2" rx="0.5" fill="${fill}" />`;
+                barsHtml += `<rect x="3" y="${yPos}" width="10" height="2" rx="0.5" fill="${fill}" />`;
             }
 
-            return `
+            return createSvgShell(color, barsHtml, voltage);
+        }
+
+        // Hjälpfunktion för att skapa själva SVG-strukturen
+        function createSvgShell(color, barsHtml, voltage = "") {
+             return `
                 <svg width="16" height="24" viewBox="0 0 16 24" style="vertical-align: middle; display: inline-block;" title="${voltage}V">
                     <!-- Toppknapp -->
                     <rect x="5" y="1" width="6" height="2" rx="1" fill="${color}" />
@@ -182,11 +201,11 @@
                 logList.innerHTML = '';
 
                 if (!data) {
-                    logList.innerHTML = '<li class="log-item" style="justify-content:center; color:#777; border-left-color:#555;">Inga loggar de senaste 15 dagarna.</li>';
+                    logList.innerHTML = '<li class="log-item" style="justify-content:center; color:#777; border-left-color:#555;">Inga loggar funna.</li>';
                     return;
                 }
 
-                // Sortera nyast överst
+                // Sortera nyast överst (omvandla objekt till array av objekt)
                 const logs = Object.keys(data).map(key => ({
                     id: key,
                     timestamp: data[key].timestamp,
@@ -200,14 +219,24 @@
                 logs.forEach(log => {
                     const ageInSeconds = now - log.timestamp;
                     
+                    // Filtrera bort allt som är äldre än 15 dagar
                     if (ageInSeconds <= fifteenDaysInSeconds) {
                         const dateObj = new Date(log.timestamp * 1000);
+                        
+                        // Formatera datum (t.ex. "9 okt.")
                         const dateStr = dateObj.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+                        // Formatera tid (t.ex. "20:26")
                         const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                        
+                        // Generera batteri-ikon
                         const batteryIcon = getBatteryIcon(log.battery);
 
                         const li = document.createElement('li');
                         li.className = 'log-item';
+                        if (log.battery !== undefined && log.battery <= 3.2) {
+                            li.classList.add('critical');
+                        }
+                        
                         li.innerHTML = `
                             <span class="log-date">${dateStr}</span>
                             <span class="log-time">${timeStr}</span>
@@ -225,13 +254,13 @@
             } catch (error) {
                 console.error("Fel vid hämtning av data:", error);
                 if (isInitialLoad) {
-                    document.getElementById('loading').innerText = "Kunde inte ladda loggar.";
+                    document.getElementById('loading').innerText = "Kunde inte ladda loggar. Kontrollera internetanslutning.";
                 }
             }
         }
 
         async function clearLogs() {
-            const pin = prompt("Ange PIN-kod för att tömma loggen:");
+            const pin = prompt("Ange PIN-kod för att tömma loggen (1956):");
             
             if (pin === null) return;
 
@@ -243,7 +272,7 @@
 
                     if (response.ok) {
                         alert("Loggen har tömts!");
-                        location.reload();
+                        location.reload(); // Ladda om sidan för att nollställa vyn
                     } else {
                         alert("Kunde inte tömma loggen via servern.");
                     }
@@ -256,7 +285,7 @@
             }
         }
 
-        // Hämta direkt och uppdatera automatiskt var 10:e sekund
+        // Hämta loggar direkt när sidan laddas, och uppdatera sedan automatiskt var 10:e sekund
         fetchLogs();
         setInterval(fetchLogs, 10000);
     </script>
