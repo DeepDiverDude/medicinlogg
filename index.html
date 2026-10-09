@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Medicinlogg</title>
+    
+    <!-- Gör sidan snyggare i "app-mode" på mobil (PWA-stöd) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#121212">
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+            color: #ffffff;
+            text-align: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .log-list {
+            list-style: none;
+            width: 100%;
+        }
+
+        .log-item {
+            background: #1e1e1e;
+            padding: 12px 16px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95rem;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .log-item.old {
+            border-left-color: #555;
+            opacity: 0.6;
+        }
+
+        .log-date {
+            color: #b0b0b0;
+        }
+
+        .log-time {
+            font-weight: bold;
+            color: #ffffff;
+        }
+
+        .log-battery {
+            font-size: 0.8rem;
+            color: #888;
+        }
+
+        .history-section {
+            margin-top: 30px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .toggle-btn {
+            background: #2a2a2a;
+            color: #b0b0b0;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+        }
+
+        .toggle-btn:active {
+            background: #3a3a3a;
+        }
+
+        .hidden-logs {
+            display: none;
+            margin-top: 10px;
+        }
+
+        .hidden-logs.show {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            color: #777;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>MEDICINLOGG</h1>
+        
+        <div id="loading" class="loading">Hämtar loggar...</div>
+        
+        <!-- Huvudlista (senaste 15 dagarna) -->
+        <ul id="recentLogList" class="log-list"></ul>
+
+        <!-- Sektion för äldre loggar -->
+        <div class="history-section" id="historySection" style="display: none;">
+            <button class="toggle-btn" id="toggleBtn" onclick="toggleHistory()">Visa äldre loggar (15+ dagar)</button>
+            <ul id="oldLogList" class="log-list hidden-logs"></ul>
+        </div>
+    </div>
+
+    <script>
+        // Byt ut mot din egen Firebase Realtime Database URL
+        const firebaseURL = "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app/clicks.json";
+
+        async function fetchLogs() {
+            try {
+                const response = await fetch(firebaseURL);
+                const data = await response.json();
+                
+                document.getElementById('loading').style.display = 'none';
+
+                if (!data) {
+                    document.getElementById('recentLogList').innerHTML = '<li class="log-item" style="justify-content:center; color:#777;">Inga loggar funna.</li>';
+                    return;
+                }
+
+                // Gör om Firebase-objektet till en array och sortera nyast överst
+                const logs = Object.keys(data).map(key => ({
+                    id: key,
+                    timestamp: data[key].timestamp,
+                    battery: data[key].battery
+                })).sort((a, b) => b.timestamp - a.timestamp);
+
+                const recentList = document.getElementById('recentLogList');
+                const oldList = document.getElementById('oldLogList');
+                
+                recentList.innerHTML = '';
+                oldList.innerHTML = '';
+
+                const now = Date.now() / 1000; // Nuvarande tid i sekunder (Epoch)
+                const fifteenDaysInSeconds = 15 * 24 * 60 * 60;
+                let hasOlderLogs = false;
+
+                logs.forEach(log => {
+                    const dateObj = new Date(log.timestamp * 1000);
+                    
+                    // Formatera datum och klockslag snyggt på svenska
+                    const dateStr = dateObj.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+                    const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                    const batteryStr = log.battery ? `(${log.battery}V)` : '';
+
+                    const li = document.createElement('li');
+                    li.className = 'log-item';
+                    li.innerHTML = `
+                        <span class="log-date">${dateStr}</span>
+                        <span class="log-time">${timeStr}</span>
+                        <span class="log-battery">${batteryStr}</span>
+                    `;
+
+                    // Kolla om loggen är äldre än 15 dagar
+                    const ageInSeconds = now - log.timestamp;
+                    if (ageInSeconds > fifteenDaysInSeconds) {
+                        li.classList.add('old');
+                        oldList.appendChild(li);
+                        hasOlderLogs = true;
+                    } else {
+                        recentList.appendChild(li);
+                    }
+                });
+
+                // Visa/dölj knappen för äldre loggar beroende på om det finns några
+                if (hasOlderLogs) {
+                    document.getElementById('historySection').style.display = 'block';
+                }
+
+            } catch (error) {
+                console.error("Fel vid hämtning av data:", error);
+                document.getElementById('loading').innerText = "Kunde inte ladda loggar.";
+            }
+        }
+
+        function toggleHistory() {
+            const oldList = document.getElementById('oldLogList');
+            const btn = document.getElementById('toggleBtn');
+            
+            oldList.classList.toggle('show');
+            
+            if (oldList.classList.contains('show')) {
+                btn.innerText = "Dölj äldre loggar";
+            } else {
+                btn.innerText = "Visa äldre loggar (15+ dagar)";
+            }
+        }
+
+        // Hämta loggar direkt när sidan laddas
+        fetchLogs();
+    </script>
+</body>
+</html>
