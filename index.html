@@ -38,11 +38,15 @@
         .container {
             width: 100%;
             max-width: 450px;
+            display: flex;
+            flex-direction: column;
+            min-height: 85vh;
         }
 
         .log-list {
             list-style: none;
             width: 100%;
+            flex-grow: 1;
         }
 
         .log-item {
@@ -55,11 +59,6 @@
             align-items: center;
             font-size: 0.95rem;
             border-left: 4px solid #4CAF50;
-        }
-
-        .log-item.old {
-            border-left-color: #555;
-            opacity: 0.6;
         }
 
         .log-date {
@@ -76,50 +75,26 @@
             color: #888;
         }
 
-        .history-section {
-            margin-top: 30px;
-            width: 100%;
-        }
-
-        .button-group {
-            display: flex;
-            gap: 10px;
+        .footer-section {
+            margin-top: 20px;
             width: 100%;
         }
 
         .action-btn {
-            background: #2a2a2a;
-            color: #b0b0b0;
+            background: #2a1a1a;
+            color: #ff6b6b;
             border: none;
-            padding: 12px 15px;
+            padding: 14px 15px;
             border-radius: 8px;
-            font-size: 0.85rem;
+            font-size: 0.9rem;
             cursor: pointer;
-            flex: 1;
+            width: 100%;
             transition: background 0.2s;
             text-align: center;
         }
 
         .action-btn:active {
-            background: #3a3a3a;
-        }
-
-        .clear-btn {
-            color: #ff6b6b;
-            background: #2a1a1a;
-        }
-
-        .clear-btn:active {
             background: #3a2222;
-        }
-
-        .hidden-logs {
-            display: none;
-            margin-top: 15px;
-        }
-
-        .hidden-logs.show {
-            display: block;
         }
 
         .loading {
@@ -136,23 +111,12 @@
         
         <div id="loading" class="loading">Hämtar loggar...</div>
         
-        <!-- Huvudlista (senaste 15 dagarna) -->
-        <ul id="recentLogList" class="log-list"></ul>
+        <!-- Lista med enbart de senaste 15 dagarna -->
+        <ul id="logList" class="log-list"></ul>
 
-        <!-- Sektion för knappar längst ner -->
-        <div class="history-section" id="historySection" style="display: none;">
-            <div class="button-group">
-                <button class="action-btn" id="toggleBtn" onclick="toggleHistory()">Visa äldre loggar</button>
-                <button class="action-btn clear-btn" onclick="clearLogs()">Töm logg</button>
-            </div>
-            <ul id="oldLogList" class="log-list hidden-logs"></ul>
-        </div>
-        
-        <!-- Om det inte finns äldre loggar men vi ändå vill ha töm-knappen synlig -->
-        <div class="history-section" id="alwaysVisibleSection" style="display: none;">
-            <div class="button-group">
-                <button class="action-btn clear-btn" onclick="clearLogs()">Töm logg</button>
-            </div>
+        <!-- Enkel knapp längst ner för att tömma loggen -->
+        <div class="footer-section">
+            <button class="action-btn" onclick="clearLogs()">Töm logg</button>
         </div>
     </div>
 
@@ -171,56 +135,49 @@
                     isInitialLoad = false;
                 }
 
+                const logList = document.getElementById('logList');
+                logList.innerHTML = '';
+
                 if (!data) {
-                    document.getElementById('recentLogList').innerHTML = '<li class="log-item" style="justify-content:center; color:#777;">Inga loggar funna.</li>';
-                    document.getElementById('alwaysVisibleSection').style.display = 'block';
+                    logList.innerHTML = '<li class="log-item" style="justify-content:center; color:#777; border-left-color:#555;">Inga loggar de senaste 15 dagarna.</li>';
                     return;
                 }
 
+                // Sortera nyast överst
                 const logs = Object.keys(data).map(key => ({
                     id: key,
                     timestamp: data[key].timestamp,
                     battery: data[key].battery
                 })).sort((a, b) => b.timestamp - a.timestamp);
 
-                const recentList = document.getElementById('recentLogList');
-                const oldList = document.getElementById('oldLogList');
-                
-                recentList.innerHTML = '';
-                oldList.innerHTML = '';
-
                 const now = Date.now() / 1000;
                 const fifteenDaysInSeconds = 15 * 24 * 60 * 60;
-                let hasOlderLogs = false;
+                let displayedCount = 0;
 
                 logs.forEach(log => {
-                    const dateObj = new Date(log.timestamp * 1000);
-                    const dateStr = dateObj.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
-                    const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-                    const batteryStr = log.battery ? `(${log.battery}V)` : '';
-
-                    const li = document.createElement('li');
-                    li.className = 'log-item';
-                    li.innerHTML = `
-                        <span class="log-date">${dateStr}</span>
-                        <span class="log-time">${timeStr}</span>
-                        <span class="log-battery">${batteryStr}</span>
-                    `;
-
                     const ageInSeconds = now - log.timestamp;
-                    if (ageInSeconds > fifteenDaysInSeconds) {
-                        li.classList.add('old');
-                        oldList.appendChild(li);
-                        hasOlderLogs = true;
-                    } else {
-                        recentList.appendChild(li);
+                    
+                    // Filtrera bort allt som är äldre än 15 dagar
+                    if (ageInSeconds <= fifteenDaysInSeconds) {
+                        const dateObj = new Date(log.timestamp * 1000);
+                        const dateStr = dateObj.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+                        const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                        const batteryStr = log.battery ? `(${log.battery}V)` : '';
+
+                        const li = document.createElement('li');
+                        li.className = 'log-item';
+                        li.innerHTML = `
+                            <span class="log-date">${dateStr}</span>
+                            <span class="log-time">${timeStr}</span>
+                            <span class="log-battery">${batteryStr}</span>
+                        `;
+                        logList.appendChild(li);
+                        displayedCount++;
                     }
                 });
 
-                if (hasOlderLogs) {
-                    document.getElementById('historySection').style.display = 'block';
-                } else {
-                    document.getElementById('alwaysVisibleSection').style.display = 'block';
+                if (displayedCount === 0) {
+                    logList.innerHTML = '<li class="log-item" style="justify-content:center; color:#777; border-left-color:#555;">Inga loggar de senaste 15 dagarna.</li>';
                 }
 
             } catch (error) {
@@ -228,19 +185,6 @@
                 if (isInitialLoad) {
                     document.getElementById('loading').innerText = "Kunde inte ladda loggar.";
                 }
-            }
-        }
-
-        function toggleHistory() {
-            const oldList = document.getElementById('oldLogList');
-            const btn = document.getElementById('toggleBtn');
-            
-            oldList.classList.toggle('show');
-            
-            if (oldList.classList.contains('show')) {
-                btn.innerText = "Dölj äldre";
-            } else {
-                btn.innerText = "Visa äldre loggar";
             }
         }
 
@@ -270,7 +214,7 @@
             }
         }
 
-        // Hämta loggar direkt vid start, och uppdatera sedan automatiskt var 10:e sekund
+        // Hämta direkt och uppdatera automatiskt var 10:e sekund
         fetchLogs();
         setInterval(fetchLogs, 10000);
     </script>
