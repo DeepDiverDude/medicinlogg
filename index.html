@@ -71,8 +71,8 @@
         }
 
         .log-battery {
-            font-size: 0.8rem;
-            color: #888;
+            display: flex;
+            align-items: center;
         }
 
         .footer-section {
@@ -125,6 +125,49 @@
         const firebaseURL = "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app/clicks.json";
         let isInitialLoad = true;
 
+        // Funktion som skapar batteri-ikon baserat på spänning (3.0V - 4.2V)
+        function getBatteryIcon(voltage) {
+            if (voltage === undefined || voltage === null) return '';
+
+            // Begränsa mellan 3.0 och 4.2
+            let v = Math.max(3.0, Math.min(4.2, voltage));
+            
+            // Dela in i 5 nivåer (varje steg är 0.24V)
+            let level = Math.ceil((v - 3.0) / 0.24);
+            if (level < 1) level = 1;
+            if (level > 5) level = 5;
+
+            // Färgkoder matchande bildens nivåer
+            const colors = {
+                1: "#ff4d4d", // Röd (<= 3.2V)
+                2: "#ff9800", // Orange
+                3: "#ffeb3b", // Gul
+                4: "#8bc34a", // Ljusgrön
+                5: "#4CAF50"  // Mörkgrön
+            };
+
+            const color = colors[level];
+
+            // Bygg de 5 staplarna underifrån och upp
+            let barsHtml = '';
+            for (let i = 1; i <= 5; i++) {
+                let y = 18 - (i * 3);
+                let fill = i <= level ? color : 'transparent';
+                barsHtml += `<rect x="3" y="${y}" width="10" height="2" rx="0.5" fill="${fill}" />`;
+            }
+
+            return `
+                <svg width="16" height="24" viewBox="0 0 16 24" style="vertical-align: middle; display: inline-block;" title="${voltage}V">
+                    <!-- Toppknapp -->
+                    <rect x="5" y="1" width="6" height="2" rx="1" fill="${color}" />
+                    <!-- Yttre ram -->
+                    <rect x="1" y="3" width="14" height="20" rx="3" fill="none" stroke="${color}" stroke-width="2" />
+                    <!-- Staplar -->
+                    ${barsHtml}
+                </svg>
+            `;
+        }
+
         async function fetchLogs() {
             try {
                 const response = await fetch(firebaseURL);
@@ -157,19 +200,18 @@
                 logs.forEach(log => {
                     const ageInSeconds = now - log.timestamp;
                     
-                    // Filtrera bort allt som är äldre än 15 dagar
                     if (ageInSeconds <= fifteenDaysInSeconds) {
                         const dateObj = new Date(log.timestamp * 1000);
                         const dateStr = dateObj.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
                         const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-                        const batteryStr = log.battery ? `(${log.battery}V)` : '';
+                        const batteryIcon = getBatteryIcon(log.battery);
 
                         const li = document.createElement('li');
                         li.className = 'log-item';
                         li.innerHTML = `
                             <span class="log-date">${dateStr}</span>
                             <span class="log-time">${timeStr}</span>
-                            <span class="log-battery">${batteryStr}</span>
+                            <span class="log-battery">${batteryIcon}</span>
                         `;
                         logList.appendChild(li);
                         displayedCount++;
