@@ -144,28 +144,23 @@
         // Funktion som skapar batteri-ikon baserat på spänning (3.0V - 4.2V)
         function getBatteryIcon(voltage) {
             if (voltage === undefined || voltage === null) {
-                 return createSvgShell("#777", ""); // Grå ikon om ingen data
+                 return createSvgShell("#777", "");
             }
 
-            // Begränsa mellan 3.0 och 4.2
             let v = Math.max(3.0, Math.min(4.2, voltage));
             
-            // Dela in i nivåer 0-5
-            // 4.2V = nivå 5, 3.0V = nivå 0 (tom, röd)
-            let level = Math.max(0, Math.floor((v - 3.0) / 0.24));
+            // Beräkna nivå 0-5 (där 4.2V ger nivå 5 och <=3.0V ger nivå 0)
+            let level = Math.round(((v - 3.0) / 1.2) * 5);
+            level = Math.max(0, Math.min(5, level));
 
-            // Färgkoder
             let color = "#4CAF50"; // Grön
             if (v <= 3.5) color = "#ff9800"; // Orange
             if (v <= 3.2) color = "#ff4d4d"; // Röd (kritisk)
 
-            // Bygg de 5 staplarna UNDERIFRÅN och upp
             let barsHtml = '';
-            // Staplarna är 2px höga med 1px mellanrum. Totalt utrymme: 5 staplar * 3px = 15px.
-            // Botten på staplarna börjar vid y=18.
+            // Bygg staplarna underifrån (i=1 är längst ner vid y=19, i=5 är högst upp vid y=7)
             for (let i = 1; i <= 5; i++) {
-                let yPos = 18 - (i * 3);
-                // Fyll stapeln om dess index (1-5) är mindre än eller lika med nivån
+                let yPos = 22 - (i * 3);
                 let fill = i <= level ? color : 'transparent';
                 barsHtml += `<rect x="3" y="${yPos}" width="10" height="2" rx="0.5" fill="${fill}" />`;
             }
@@ -173,15 +168,11 @@
             return createSvgShell(color, barsHtml, voltage);
         }
 
-        // Hjälpfunktion för att skapa själva SVG-strukturen
         function createSvgShell(color, barsHtml, voltage = "") {
              return `
                 <svg width="16" height="24" viewBox="0 0 16 24" style="vertical-align: middle; display: inline-block;" title="${voltage}V">
-                    <!-- Toppknapp -->
                     <rect x="5" y="1" width="6" height="2" rx="1" fill="${color}" />
-                    <!-- Yttre ram -->
                     <rect x="1" y="3" width="14" height="20" rx="3" fill="none" stroke="${color}" stroke-width="2" />
-                    <!-- Staplar -->
                     ${barsHtml}
                 </svg>
             `;
@@ -205,7 +196,6 @@
                     return;
                 }
 
-                // Sortera nyast överst (omvandla objekt till array av objekt)
                 const logs = Object.keys(data).map(key => ({
                     id: key,
                     timestamp: data[key].timestamp,
@@ -219,16 +209,12 @@
                 logs.forEach(log => {
                     const ageInSeconds = now - log.timestamp;
                     
-                    // Filtrera bort allt som är äldre än 15 dagar
                     if (ageInSeconds <= fifteenDaysInSeconds) {
                         const dateObj = new Date(log.timestamp * 1000);
                         
-                        // Formatera datum (t.ex. "9 okt.")
                         const dateStr = dateObj.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
-                        // Formatera tid (t.ex. "20:26")
                         const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
                         
-                        // Generera batteri-ikon
                         const batteryIcon = getBatteryIcon(log.battery);
 
                         const li = document.createElement('li');
@@ -272,7 +258,7 @@
 
                     if (response.ok) {
                         alert("Loggen har tömts!");
-                        location.reload(); // Ladda om sidan för att nollställa vyn
+                        location.reload();
                     } else {
                         alert("Kunde inte tömma loggen via servern.");
                     }
@@ -285,7 +271,6 @@
             }
         }
 
-        // Hämta loggar direkt när sidan laddas, och uppdatera sedan automatiskt var 10:e sekund
         fetchLogs();
         setInterval(fetchLogs, 10000);
     </script>
