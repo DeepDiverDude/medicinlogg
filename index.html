@@ -238,7 +238,6 @@
         }
 
         async function clearLogs() {
-            // Döljer PIN-koden i texten så den inte visas i klartext
             const pin = prompt("Ange PIN-kod för att tömma loggen:");
             
             if (pin === null) return;
@@ -246,7 +245,11 @@
             if (pin === "1956") {
                 try {
                     const response = await fetch(`${firebaseURL}.json`, {
-                        method: 'DELETE'
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(null)
                     });
 
                     if (response.ok) {
