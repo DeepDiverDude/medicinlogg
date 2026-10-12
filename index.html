@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Medicinlogg</title>
     
-    <!-- Gör sidan snyggare i "app-mode" på mobil (PWA-stöd) -->
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#121212">
@@ -127,38 +126,31 @@
         
         <div id="loading" class="loading">Hämtar loggar...</div>
         
-        <!-- Lista med enbart de senaste 15 dagarna -->
         <ul id="logList" class="log-list"></ul>
 
-        <!-- Enkel knapp längst ner för att tömma loggen -->
         <div class="footer-section">
             <button class="action-btn" onclick="clearLogs()">Töm logg</button>
         </div>
     </div>
 
     <script>
-        // Byt ut mot din egen Firebase Realtime Database URL
         const firebaseURL = "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app/clicks.json";
         let isInitialLoad = true;
 
-        // Funktion som skapar batteri-ikon baserat på spänning (3.0V - 4.2V)
         function getBatteryIcon(voltage) {
             if (voltage === undefined || voltage === null) {
                  return createSvgShell("#777", "");
             }
 
             let v = Math.max(3.0, Math.min(4.2, voltage));
-            
-            // Beräkna nivå 0-5 (där 4.2V ger nivå 5 och <=3.0V ger nivå 0)
             let level = Math.round(((v - 3.0) / 1.2) * 5);
             level = Math.max(0, Math.min(5, level));
 
-            let color = "#4CAF50"; // Grön
-            if (v <= 3.5) color = "#ff9800"; // Orange
-            if (v <= 3.2) color = "#ff4d4d"; // Röd (kritisk)
+            let color = "#4CAF50"; 
+            if (v <= 3.5) color = "#ff9800"; 
+            if (v <= 3.2) color = "#ff4d4d"; 
 
             let barsHtml = '';
-            // Bygg staplarna underifrån (i=1 är längst ner vid y=19, i=5 är högst upp vid y=7)
             for (let i = 1; i <= 5; i++) {
                 let yPos = 22 - (i * 3);
                 let fill = i <= level ? color : 'transparent';
@@ -252,8 +244,16 @@
 
             if (pin === "1956") {
                 try {
+                    // För att klara Firebase säkerhetsregel vid DELETE (som inte tillåter body), 
+                    // kan vi skicka med koden som ett query-parameter om regeln tillåter det, 
+                    // eller så skickar vi en PUT med ett tomt objekt som innehåller secret: "1956".
+                    // Det säkraste och enklaste för att nollägga databasen är en PUT med ett objekt som bara innehåller koden:
                     const response = await fetch(firebaseURL, {
-                        method: 'DELETE'
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ "secret": "1956" })
                     });
 
                     if (response.ok) {
