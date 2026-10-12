@@ -134,7 +134,8 @@
     </div>
 
     <script>
-        const firebaseURL = "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app/clicks";
+        // Pekar direkt på roten av databasen
+        const firebaseURL = "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app";
         let isInitialLoad = true;
 
         function getBatteryIcon(voltage) {
@@ -172,7 +173,7 @@
 
         async function fetchLogs() {
             try {
-                const response = await fetch(`${firebaseURL}.json`);
+                const response = await fetch(`${firebaseURL}/.json`);
                 const data = await response.json();
                 
                 if (isInitialLoad) {
@@ -192,7 +193,7 @@
                     id: key,
                     timestamp: data[key].timestamp,
                     battery: data[key].battery
-                })).filter(log => log.timestamp);
+                })).filter(log => log.timestamp); // Filtrerar bort eventuella ovidkommande fält i roten
 
                 logs.sort((a, b) => b.timestamp - a.timestamp);
 
@@ -240,21 +241,23 @@
 
             if (pin === "1956") {
                 try {
-                    // Skickar ett tomt objekt {} istället för null så att "clicks"-mappen bevaras i databasen
-                    const response = await fetch(`${firebaseURL}.json`, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({})
-                    });
+                    const getRes = await fetch(`${firebaseURL}/.json`);
+                    const data = await getRes.json();
 
-                    if (response.ok) {
-                        alert("Loggen har tömts!");
-                        location.reload();
-                    } else {
-                        alert("Kunde inte tömma loggen via servern.");
+                    if (!data) {
+                        alert("Loggen är redan tom!");
+                        return;
                     }
+
+                    // Raderar varje post direkt i roten
+                    const deletePromises = Object.keys(data).map(key => 
+                        fetch(`${firebaseURL}/${key}.json`, { method: 'DELETE' })
+                    );
+
+                    await Promise.all(deletePromises);
+
+                    alert("Loggen har tömts!");
+                    location.reload();
                 } catch (error) {
                     console.error("Fel vid radering:", error);
                     alert("Ett fel uppstod vid anslutning till databasen.");
