@@ -134,7 +134,7 @@
     </div>
 
     <script>
-        const firebaseURL = "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app/clicks.json";
+        const firebaseURL = "https://medicinlogg-2ad29-default-rtdb.europe-west1.firebasedatabase.app/clicks";
         let isInitialLoad = true;
 
         function getBatteryIcon(voltage) {
@@ -172,7 +172,7 @@
 
         async function fetchLogs() {
             try {
-                const response = await fetch(firebaseURL);
+                const response = await fetch(`${firebaseURL}.json`);
                 const data = await response.json();
                 
                 if (isInitialLoad) {
@@ -238,19 +238,15 @@
         }
 
         async function clearLogs() {
-            const pin = prompt("Ange PIN-kod för att tömma loggen (1956):");
+            // Döljer PIN-koden i texten så den inte visas i klartext
+            const pin = prompt("Ange PIN-kod för att tömma loggen:");
             
             if (pin === null) return;
 
             if (pin === "1956") {
                 try {
-                    // Skickar med det hemliga fältet för att uppfylla säkerhetsregeln vid nollställning
-                    const response = await fetch(firebaseURL, {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ "secret": "1956" })
+                    const response = await fetch(`${firebaseURL}.json`, {
+                        method: 'DELETE'
                     });
 
                     if (response.ok) {
