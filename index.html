@@ -192,41 +192,37 @@
                     id: key,
                     timestamp: data[key].timestamp,
                     battery: data[key].battery
-                })).sort((a, b) => b.timestamp - a.timestamp);
+                })).filter(log => log.timestamp);
 
-                const now = Date.now() / 1000;
-                const fifteenDaysInSeconds = 15 * 24 * 60 * 60;
+                logs.sort((a, b) => b.timestamp - a.timestamp);
+
                 let displayedCount = 0;
 
                 logs.forEach(log => {
-                    const ageInSeconds = now - log.timestamp;
+                    const dateObj = new Date(log.timestamp * 1000);
                     
-                    if (ageInSeconds <= fifteenDaysInSeconds) {
-                        const dateObj = new Date(log.timestamp * 1000);
-                        
-                        const dateStr = dateObj.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
-                        const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-                        
-                        const batteryIcon = getBatteryIcon(log.battery);
+                    const dateStr = dateObj.toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' });
+                    const timeStr = dateObj.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+                    
+                    const batteryIcon = getBatteryIcon(log.battery);
 
-                        const li = document.createElement('li');
-                        li.className = 'log-item';
-                        if (log.battery !== undefined && log.battery <= 3.2) {
-                            li.classList.add('critical');
-                        }
-                        
-                        li.innerHTML = `
-                            <span class="log-date">${dateStr}</span>
-                            <span class="log-time">${timeStr}</span>
-                            <span class="log-battery">${batteryIcon}</span>
-                        `;
-                        logList.appendChild(li);
-                        displayedCount++;
+                    const li = document.createElement('li');
+                    li.className = 'log-item';
+                    if (log.battery !== undefined && log.battery <= 3.2) {
+                        li.classList.add('critical');
                     }
+                    
+                    li.innerHTML = `
+                        <span class="log-date">${dateStr}</span>
+                        <span class="log-time">${timeStr}</span>
+                        <span class="log-battery">${batteryIcon}</span>
+                    `;
+                    logList.appendChild(li);
+                    displayedCount++;
                 });
 
                 if (displayedCount === 0) {
-                    logList.innerHTML = '<li class="log-item" style="justify-content:center; color:#777; border-left-color:#555;">Inga loggar de senaste 15 dagarna.</li>';
+                    logList.innerHTML = '<li class="log-item" style="justify-content:center; color:#777; border-left-color:#555;">Inga loggar att visa.</li>';
                 }
 
             } catch (error) {
@@ -244,12 +240,13 @@
 
             if (pin === "1956") {
                 try {
+                    // Skickar ett tomt objekt {} istället för null så att "clicks"-mappen bevaras i databasen
                     const response = await fetch(`${firebaseURL}.json`, {
                         method: 'PUT',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(null)
+                        body: JSON.stringify({})
                     });
 
                     if (response.ok) {
